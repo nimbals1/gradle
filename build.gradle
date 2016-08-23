@@ -1,0 +1,18 @@
+version = '1.0'
+outputFile = file("$buildDir/version.txt")
+ 
+task generateVersionFile << {
+    if (!outputFile.isFile()) {
+        outputFile.parentFile.mkdirs()
+        outputFile.createNewFile()
+    }
+    outputFile.write "Version: $version"
+}
+ 
+generateVersionFile.inputs.property "version", version
+generateVersionFile.outputs.files outputFile
+ 
+task showContents << {
+    println outputFile.text
+}
+showContents.dependsOn generateVersionFile
