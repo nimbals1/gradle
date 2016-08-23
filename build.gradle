@@ -1,5 +1,5 @@
 version = '1.0'
-$buildDir='C:\Program Files\Jenkins\jobs\gradle\workspace'
+$buildDir='C:/Program Files/Jenkins/jobs/gradle/workspace'
 outputFile = file("$buildDir/version.txt")
  
 task generateVersionFile << {
