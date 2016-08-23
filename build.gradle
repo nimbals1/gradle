@@ -1,5 +1,5 @@
 version = '1.0'
-outputFile = file("version.txt")
+outputFile = file("$buildDir/version.txt")
  
 task generateVersionFile << {
     if (!outputFile.isFile()) {
