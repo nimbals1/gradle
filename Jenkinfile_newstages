@@ -1,0 +1,90 @@
+// ***************** new code ***************************									
+node { 
+  catchError
+	{
+	stage 'Stage Checkout'
+	// Checkout code from repository and update any submodules	  	
+	echo " -------------- Stage Checkout Started ---------------- "
+	checkout scm
+	sh 'git submodule update --init'  
+	
+	stage ‘Stage PR Status’
+	echo " -------------- Stage Set Build Status Pending on GITHub ---------------- "
+        //step([$class: 'GitHubSetCommitStatusBuilder']) — build status 
+	setGitHubPullRequestStatus context: 'Pending', message: 'Pull request is in Pending status. Tests are running.', state: 'PENDING'
+
+	stage ‘Stage Unit Test'
+	echo " -------------- Stage Unit Test Started ---------------- "
+	//sh ‘./gradlew test’
+	//junit testResults: '**/*.xml' 
+	//archiveUnitTestResults()
+    	//archiveCheckstyleResults()
+
+	//Parallel Unit and Check Style Testing
+	parallel (
+     		UnitTesting: { 
+			archiveUnitTestResults()
+			sh "echo Unit Testing" 
+		},
+     		CheckStyle: { 
+			archiveCheckstyleResults()
+			sh "echo Check Style Testing” 
+		}
+	)
+	//failFast will terminate stage upon a failure in any testing -optional-
+	failFast: true|false 
+	
+	// if unit tests have failed currentBuild will be 'UNSTABLE' & we should not bother to run integration tests
+	if (currentBuild.result == null) 
+	{    
+        	//stage "integration test"
+            	//sh (script: './gradlew integTest', returnStatus: true)
+            	//step([$class: 'JUnitResultArchiver',
+                //testResults: '**/integTest/TEST-*.xml'])
+	        //setGitHubPullRequestStatus context: 'Failed', message: 'Tests are failed. Please investigate.', state: 'FAILURE'
+
+		stage 'Stage Build'
+		echo " -------------- Stage Build Started ---------------- "
+		echo "My branch is: ${env.BRANCH_NAME}"
+		echo “Build Number: ${env.BUILD_NUMBER}”
+		echo “Build Tag: ${env.BUILD_TAG}”
+		sh "./griddle clean build"
+  	
+		stage 'Stage Publish'
+  		echo " -------------- Stage Publish Started ---------------- "
+		//sh "./gradlew artifactoryPublish -Dartifactory-user=admin -Dartifactory-password=password
+	
+		stage ‘Stage Archieve'
+		echo " -------------- Stage Archieve Started ---------------- "
+		archiveArtifacts allowEmptyArchive: true, artifacts: '**', excludes: null, fingerprint: true, onlyIfSuccessful: true
+	
+		//stage ‘Stage Integration Test'
+		//echo " -------------- Stage Integration Test Started ---------------- "
+		//sh ‘./gradlew integTest’ 
+	} //if end
+	
+	if (currentBuild.result == ‘SUCESS’)
+	{
+	//when build is successful comment PR with build number and build result
+		step([$class: 'GitHubPRCommentPublisher', comment: [content: 'Build ${BUILD_NUMBER} ${BUILD_RESULT} ${BRANCH_NAME $CHANGE_ID $CHANGE_URL $CHANGE_TARGET $BUILD_URL}’], statusVerifier: [buildStatus: <object of type hudson.model.Result>]])
+  	}
+	
+  } //catcherror
+
+// any error in catch block will send mail to below id
+step([$class: 'Mailer', recipients: ‘shilpa.nimbalkar@cognizant.com’])
+
+} //node end
+
+// Unit and Checkstyle testing of code
+def archiveUnitTestResults() 
+{
+	step([$class: "JUnitResultArchiver”, testResults: "build/**/TEST-*.xml"])
+}
+
+def archiveCheckstyleResults() 
+{
+    	step([$class: "CheckStylePublisher", canComputeNew: false, defaultEncoding: "", healthy: "", pattern: "build/reports/checkstyle/main.xml", unHealthy: ""])
+}
+
+// ***************** UP new code ***************************
